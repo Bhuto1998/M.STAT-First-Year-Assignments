@@ -1,0 +1,145 @@
+---
+title: "Regression Techniques Assignment 1"
+author: "Arnab Mukherjee MS-1908"
+date: "7 August 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+First we have to get hold of a data set.
+We will use the package "Sleuth3" from R and here we will use case1102 data set of the sleuth3 package.
+
+### The Blood-Brain Barrier
+The human brain is protected from bacteria and toxins, which courses throught the blood stream, by a single layer of cells called the blood-brain barrier. These data come from an experiment(on rats, which process a similar barrier) to study a method of disrupting the barrier by infusing a solution of concentrated sugars.
+#### Format
+
+A data frame with 34 observations on the following 9 variables.
+
+##### Brain
+Brain tumor count (per gm)
+
+##### Liver
+Liver count (per gm)
+
+##### Time
+Sacrifice time (in hours)
+
+##### Treatment
+Treatment received
+
+##### Days
+Days post inoculation
+
+##### Sex
+Sex of the rat
+
+##### Weight
+Initial weight (in grams)
+
+##### Loss
+Weight loss (in grams)
+
+##### Tumor
+Tumor weight (in 10^(-4) grams)
+
+#### Source
+
+Ramsey, F.L. and Schafer, D.W. (2013). The Statistical Sleuth: A Course in Methods of Data Analysis (3rd ed), Cengage Learning.
+
+```{r cars}
+data = Sleuth3::case1102
+data
+```
+
+Suppose we are only interested in working with a subset of variables (e.g. brain,liver, weight, loss , tumor )
+
+```{r}
+myvars = c("Brain","Liver","Weight","Loss","Tumor")
+data2 = data[myvars]
+data2
+```
+
+Here our response variable is brain tumor count so we fit the following linear model,
+
+```{r}
+model = lm(Brain ~ Liver + Weight + Loss + Tumor, data = data2)
+model
+summary(model)
+```
+The Box-Cox procedure chooses an optimal transformation to remediate deviations from the assumptions of the linear regression model
+
+```{r pressure, echo=TRUE}
+library(MASS)
+boxcox(model)
+```
+
+### Residual Analysis
+```{r}
+par(mfrow = c(2,2))
+plot(model)
+dffits(model)
+cooks.distance(model)
+plot(cooks.distance(model))
+```
+
+## Model Selection
+#### Mallow's Cp
+```{r}
+library(leaps)
+leaps(x= data2[,2:5],y=data2[,1],names = names(data2)[2:5],method = "Cp")
+```
+
+So using mallow's Cp we can see that our model 13 i.e. Brain ~ Weight + Loss+ Tumor is the best reduced model as Cp = 4.2871 and p = 4
+
+#### Adjusted R^2
+```{r}
+leaps(x= data2[,2:5],y=data2[,1],names = names(data2)[2:5],method = "adjr2")
+```
+
+Although if we use adj R^2 then the best model turns out to be Brain~ Loss so clearly adjusted R^2 can be very misleading sometimes.
+
+### Information Criteria
+
+Now obviously checking Information criterias for all possible sub model is a very tideous work so here we just check for the two competing sub models that came from mallow's Cp method and adjusted R^2 method
+```{r}
+model1 = lm(Brain~Weight + Loss+ Tumor ,data2)
+model2 = lm(Brain ~ Loss,data2)
+extractAIC(model1)
+extractAIC(model2)
+extractAIC(model1,k = log(34))
+extractAIC(model2,k = log(34))
+```
+
+And evidently Mallow's Cp method gave a better model as confirmed by both Akaike and Bayesian information criteria.
+
+### Variable Selection Forward Direction
+We will include Loss as our basic predictor as we are fairly confident that it would be included in the final model
+```{r}
+base = lm(Brain ~ Loss,data2)
+step(base,scope = list(upper = model,lower=~1),direction = "forward",trace = FALSE)
+```
+
+So our sub model turns out to be Brain ~ Loss in this case
+
+### Variable Selection Backward Direction
+```{r}
+step(model,direction = "backward",trace = FALSE)
+```
+
+So our submodel turns out to be Brain ~ Loss.
+
+### Updated Linear Model
+```{r}
+model_updated = lm(Brain~Loss,data2)
+summary(model_updated)
+```
+
+### Final Remark:
+So in this assignment we, 
+1. Collected a data set and fit a linear model over all the predictors
+2. Checked if the linear model assumption is valid and found out the optimal box-cox transformation to remediate deviations from the assumptions.
+3.Then we checked if there are any influencial observation by the means of cook's distance and observed that there is indeed one influential observation
+4. Then we decided to reduce the number of parameters of the model and noticed that different method gave rise to different submodels, which again re-iterates the main fact that,
+ THERE IS NO "ONE" OPTIMAL METHOD FOR VARIABLE SELECTION

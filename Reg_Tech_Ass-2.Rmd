@@ -1,0 +1,120 @@
+---
+title: "Regression Assignment 2"
+author: "Arnab Mukherjee"
+date: "17 September 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Ridge, Lasso & Elastic Net
+
+
+```{r cars}
+install.packages("glmnet",repos = "http://cran.us.r-project.org")
+library(MASS)
+library(glmnet)
+```
+
+Here we will work with soccer club rankings based on their offensive,defensive and spi score.
+
+```{r}
+library(readr)
+spi_global_rankings <- read_csv("C:/Users/Arnab/Downloads/soccer-spi/soccer-spi/spi_global_rankings.csv")
+View(spi_global_rankings)
+head(spi_global_rankings)
+x = spi_global_rankings[,5:7]
+y = matrix(1:628,628,1)
+x = as.matrix(x)
+dim(y)
+```
+
+
+## split the sample into test set and training set
+```{r}
+train_rows = sample(1:628, 550)
+x.train <- x[train_rows, ]
+x.test <- x[-train_rows, ]
+```
+
+```{r}
+y.train <- y[train_rows,]
+y.test <- y[-train_rows,]
+typeof(x)
+```
+## Fit Models
+```{r}
+fit.lasso <- glmnet(x.train, y.train, family="gaussian", alpha=1)
+fit.ridge <- glmnet(x.train, y.train, family="gaussian", alpha=0)
+fit.elnet <- glmnet(x.train, y.train, family="gaussian", alpha=.5)
+
+par(mfrow=c(3,1))
+plot(fit.lasso, xvar="lambda")
+
+plot(fit.ridge, xvar="lambda")
+
+plot(fit.elnet, xvar="lambda")
+
+```
+
+
+## Cross Validation for Optimal Lambda
+```{r}
+cvfit1=cv.glmnet(x.train, y.train, alpha=1, nfolds=10)
+plot(cvfit1)
+s=cvfit1$lambda.min
+s
+coef(fit.lasso,s)
+```
+
+
+
+## Modeling Longitudinal Data with Mixed effect model
+
+```{r}
+library("lme4")
+data(Orthodont,package="nlme")
+Orthodont$nsex <- as.numeric(Orthodont$Sex=="Male")
+Orthodont$nsexage <- with(Orthodont, nsex*age)
+lmer(distance ~ age + (age|Subject) + (0+nsex|Subject) +
+     (0 + nsexage|Subject), data=Orthodont)
+```
+
+## Non-Parametric Regression
+We use back the x from the lasso example
+```{r}
+library("locfit")
+a= x[,1]
+b = x[,2]
+fit1=locfit(b~a,alpha=c(0,2))
+fitted(fit1)
+
+```
+
+
+```{r}
+plot(a,b)
+lines(a,b, col="gray")
+
+```
+
+```{r}
+fit2 = ksmooth(a,b,kernel = "normal")
+plot(a,b)
+lines(fit2)
+```
+
+```{r}
+fit3 = ksmooth(a,b,kernel = "normal" , bandwidth =  0.8)
+plot(a,b)
+lines(fit3)
+```
+
+```{r}
+fit4 = ksmooth(a,b,kernel = "normal" , bandwidth =  2.0)
+plot(a,b)
+lines(fit4)
+```
+
